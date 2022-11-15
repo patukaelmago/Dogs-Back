@@ -3,7 +3,7 @@ const { API_KEY, URL_DOGS } = process.env;
 const {Dog, Temperament } = require('../db');
 require('dotenv').config();
 
-
+const macoin="";
 
 async function getApiDogs(){
     const getApi = await axios('https://api.thedogapi.com/v1/breeds?live_pE8PgnzSZLtTCj2UwX3XPmbk5gmwL0BYfvGpeHlfYNPZwWhObxyDUPSRY7m5UL6O')
