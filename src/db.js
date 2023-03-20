@@ -11,12 +11,12 @@ const {
   native: false, 
 }); */
 /* const sequelize = new Sequelize(`postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/dogs`, { */
-/* const sequelize = new Sequelize(
+const sequelize = new Sequelize(
 DB_DEPLOY, {
   logging: false,
   native: false, 
-}); */
-const sequelize = new Sequelize(DB_DEPLOY, DB_USER, DB_PASSWORD, {
+}); 
+/* const sequelize = new Sequelize(DB_DEPLOY, DB_USER, DB_PASSWORD, {
   host: DB_HOST,
   dialect: 'postgres',
   logging: false,
@@ -27,7 +27,7 @@ const sequelize = new Sequelize(DB_DEPLOY, DB_USER, DB_PASSWORD, {
       rejectUnauthorized: false,
     },
   },
-});
+}); */
 
 const basename = path.basename(__filename);
 
