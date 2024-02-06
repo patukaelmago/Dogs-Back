@@ -15,7 +15,16 @@ const sequelize = new Sequelize(
 DB_DEPLOY, {
   logging: false,
   native: false, 
+
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false,
+    },
+
+  }
 }); 
+
 /* const sequelize = new Sequelize(DB_DEPLOY, DB_USER, DB_PASSWORD, {
   host: DB_HOST,
   dialect: 'postgres',
