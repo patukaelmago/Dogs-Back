@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { API_KEY, URL_DOGS } = process.env;
+// const { API_KEY, URL_DOGS } = process.env;
 const {Dog, Temperament } = require('../db');
 require('dotenv').config();
 
@@ -10,7 +10,7 @@ async function getApiDogs(){
         return {
             id:d.id,
             name:d.name,
-            image:d.image.url,
+            image:"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/132.png",
             temperaments: typeof(d.temperament) === 'string'? d.temperament.split(', '):d.temperament ,
             lifespan:d.life_span,
             weightMin:Number.isNaN(parseInt(d.weight.metric.split(' - ')[0]))  ? 20 :parseInt(d.weight.metric.split(' - ')[0]),
