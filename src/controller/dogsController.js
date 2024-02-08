@@ -6,11 +6,13 @@ require('dotenv').config();
 
 async function getApiDogs(){
     const getApi = await axios('https://api.thedogapi.com/v1/breeds?live_pE8PgnzSZLtTCj2UwX3XPmbk5gmwL0BYfvGpeHlfYNPZwWhObxyDUPSRY7m5UL6O')
+    const  image = await axios("https://api.thedogapi.com/v1/images/search?size=med&mime_types=jpg&format=json&has_breeds=true&order=RANDOM&page=0&limit=1") 
     const getApiInfo = await getApi?.data.map(d => {
         return {
             id:d.id,
             name:d.name,
-            image:"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/132.png",
+            // image:"https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/132.png",
+            image:image,
             temperaments: typeof(d.temperament) === 'string'? d.temperament.split(', '):d.temperament ,
             lifespan:d.life_span,
             weightMin:Number.isNaN(parseInt(d.weight.metric.split(' - ')[0]))  ? 20 :parseInt(d.weight.metric.split(' - ')[0]),
