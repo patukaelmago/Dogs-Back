@@ -5,7 +5,8 @@ const morgan = require('morgan');
 const routes = require('./routes/index.js');
 const cors = require('cors');
 const { conn } = require('./db');
-const allowedOrigins = (process.env.CORS_URL || '').split(',').map(value => value.trim()).filter(Boolean);
+const allowedOrigins = [...new Set([process.env.CORS_URL, process.env.FRONTEND_URL]
+  .filter(Boolean).join(',').split(',').map(value => value.trim().replace(/\/$/, '')).filter(Boolean))];
 
 
 const server = express();

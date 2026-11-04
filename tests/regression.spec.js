@@ -74,7 +74,15 @@ describe('Backend failure regressions (isolated external services)', () => {
     for (const file of ['../src/app', '../src/routes', '../src/routes/dogsRoute', '../src/routes/temperamentsRoute']) {
       delete require.cache[require.resolve(file)];
     }
+    const previousCors = process.env.CORS_URL;
+    const previousFrontend = process.env.FRONTEND_URL;
+    process.env.CORS_URL = 'https://original.example';
+    process.env.FRONTEND_URL = 'https://dogs.example/';
     const app = require('../src/app');
+    if (previousCors === undefined) delete process.env.CORS_URL; else process.env.CORS_URL = previousCors;
+    if (previousFrontend === undefined) delete process.env.FRONTEND_URL; else process.env.FRONTEND_URL = previousFrontend;
+    await request(app).get('/health').set('Origin', 'https://dogs.example').expect('Access-Control-Allow-Origin', 'https://dogs.example');
+    await request(app).get('/health').set('Origin', 'https://original.example').expect('Access-Control-Allow-Origin', 'https://original.example');
     axios.get = async () => { throw new Error('Rate limited'); };
     await request(app).get('/temperaments').expect(502);
     await request(app).get('/dogs').expect(502);
