@@ -10,6 +10,20 @@ conn.sync().then(() => {
   });
 }).catch((error) => {
   // Avoid logging database URLs or credentials.
-  console.error('Database initialization failed:', error.name, error.original?.code || '');
+  const connectionValue = process.env.DATABASE_URL || process.env.DB_DEPLOY;
+  let provider = 'local or individual DB variables';
+  if (connectionValue) {
+    try {
+      const host = new URL(connectionValue).hostname;
+      // Only the public provider domain is logged, never credentials or a resource hostname.
+      provider = host.split('.').slice(-2).join('.');
+    } catch (_) {
+      provider = 'invalid connection URL';
+    }
+  }
+  const cause = error.original || error;
+  const reason = cause.message === 'Connection terminated unexpectedly'
+    ? 'Connection terminated unexpectedly' : (cause.code || error.name);
+  console.error('Database initialization failed:', { provider, reason, runtime: process.version });
   process.exitCode = 1;
 });
