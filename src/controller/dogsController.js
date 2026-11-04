@@ -1,54 +1,72 @@
 const axios = require('axios');
-// const { API_KEY, URL_DOGS } = process.env;
-const {Dog, Temperament } = require('../db');
-require('dotenv').config();
+const { Dog, Temperament } = require('../db');
 
+let cachedDogs;
+let cachedAt = 0;
+let pending;
+const CACHE_TTL = 60 * 60 * 1000;
 
-async function getApiDogs(){
-       const dogsApi = await axios.get(`https://api.thedogapi.com/v1/breeds?live&limit=24&page=0_pE8PgnzSZLtTCj2UwX3XPmbk5gmwL0BYfvGpeHlfYNPZwWhObxyDUPSRY7m5UL6O`)
-        const dogs = await dogsApi.data.map(dogs => {return axios.get(`https://api.thedogapi.com/v1/images/${dogs.reference_image_id}`)});
-        const dogsPromise = await Promise.all(dogs);  
-        const result = dogsPromise.map(d =>d.data)
-
-        const getApiInfo = await dogsApi?.data.map((d) => {
-         return {
-                        id:d.id,
-                        name:d.name,
-                        image:result.find(({id}) => id == d.reference_image_id).url,
-                        temperaments: typeof(d.temperament) === 'string'? d.temperament.split(', '):d.temperament ,
-                        lifespan:d.life_span,
-                        weightMin:Number.isNaN(parseInt(d.weight.metric.split(' - ')[0]))  ? 20 :parseInt(d.weight.metric.split(' - ')[0]),
-                        weightMax:Number.isNaN(parseInt(d.weight.metric.split(' - ')[1]))  ? 50 : parseInt(d.weight.metric.split(' - ')[1]),
-                        heightMin:Number.isNaN(parseInt(d.height.metric.split(' - ')[0])) ? 1 :parseInt(d.height.metric.split(' - ')[0]),
-                        heightMax:Number.isNaN(parseInt(d.height.metric.split(' - ')[1])) ? 10 : parseInt(d.height.metric.split(' - ')[1]),
-                        createdInDb: false
-                    }
-                });
-    return getApiInfo;
-            }
-
-
-async function getDbDogs(){
-    return await Dog.findAll({
-        include:{
-            model:Temperament,
-            attributes: ['name'],
-            through: {
-                attributes: [],
-            }
-        }
-    });
+function range(value, fallbackMin, fallbackMax) {
+  const numbers = String(value || '').match(/\d+(?:\.\d+)?/g) || [];
+  return [Number(numbers[0]) || fallbackMin, Number(numbers[1] || numbers[0]) || fallbackMax];
 }
 
-const getAllDogs = async () => {
-    const apiInfo = await getApiDogs();
-    const dbInfo = await getDbDogs();
-    const infoTotal = apiInfo.concat(dbInfo);
-    return infoTotal; 
+async function fetchDogs() {
+  const apiKey = process.env.DOG_API_KEY || process.env.API_KEY;
+  const options = { timeout: 15000, headers: apiKey ? { 'x-api-key': apiKey } : {} };
+  const { data } = await axios.get('https://api.thedogapi.com/v1/breeds', options);
+  if (!Array.isArray(data) || data.length === 0) throw new Error('Invalid breed catalogue');
+  const dogs = data.map(d => {
+    const [weightMin, weightMax] = range(d.weight?.metric, 20, 50);
+    const [heightMin, heightMax] = range(d.height?.metric, 1, 10);
+    return {
+      id: d.id, name: d.name, image: d.image?.url || '',
+      temperaments: typeof d.temperament === 'string' ? d.temperament.split(',').map(t => t.trim()).filter(Boolean) : [],
+      lifespan: d.life_span, weightMin, weightMax, heightMin, heightMax, createdInDb: false,
+    };
+  });
+  // Older API responses omit image URLs. Resolve only those images, with bounded concurrency.
+  let next = 0;
+  await Promise.all(Array.from({ length: 4 }, async () => {
+    while (next < data.length) {
+      const index = next++;
+      if (dogs[index].image || !data[index].reference_image_id) continue;
+      try {
+        const image = await axios.get(`https://api.thedogapi.com/v1/images/${encodeURIComponent(data[index].reference_image_id)}`, { ...options, timeout: 5000 });
+        dogs[index].image = image.data.url || '';
+      } catch (error) {
+        // A missing image must not take down the entire catalogue.
+        console.warn('Breed image unavailable:', data[index].id);
+      }
+    }
+  }));
+  cachedDogs = dogs;
+  cachedAt = Date.now();
+  return dogs;
 }
 
-module.exports={
-    getApiDogs,
-    getDbDogs,
-    getAllDogs
+async function getApiDogs() {
+  if (cachedDogs && Date.now() - cachedAt < CACHE_TTL) return cachedDogs;
+  if (!pending) {
+    pending = fetchDogs().catch(error => {
+      if (cachedDogs) return cachedDogs;
+      const unavailable = new Error('The breed catalogue is temporarily unavailable. Please try again.');
+      unavailable.status = 502;
+      throw unavailable;
+    }).finally(() => { pending = null; });
+  }
+  return pending;
 }
+
+async function getDbDogs() {
+  return Dog.findAll({
+    include: { model: Temperament, attributes: ['name'], through: { attributes: [] } },
+  });
+}
+
+async function getAllDogs() {
+  const [apiInfo, dbInfo] = await Promise.all([getApiDogs(), getDbDogs()]);
+  return apiInfo.concat(dbInfo);
+}
+
+module.exports = { getApiDogs, getDbDogs, getAllDogs };

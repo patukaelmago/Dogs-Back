@@ -1,37 +1,28 @@
 const { Router } = require('express');
+const { Temperament } = require('../db');
+const { getApiDogs } = require('../controller/dogsController');
 const router = Router();
-const { Dog, Temperament } = require('../db')
-const axios = require('axios');
+let seeding;
+let seeded = false;
 
-router.get('/', async (req, res) => {
-    let infoApi = await axios(`https://api.thedogapi.com/v1/breeds?live_pE8PgnzSZLtTCj2UwX3XPmbk5gmwL0BYfvGpeHlfYNPZwWhObxyDUPSRY7m5UL6O`);
-    let tempsRepeated = infoApi.data.map(el => el.temperament).toString();
-    tempsRepeated = await tempsRepeated.split(',');
-    const tempsConEspacio = await tempsRepeated.map(el => {
-        if (el[0] == ' ') {
-            return el.split('');
-        }
-        return el;
-    });
-    const tempsSinEspacio = await tempsConEspacio.map(el => {
-        if (Array.isArray(el)) {
-            el.shift();
-            return el.join('');
-        }
-        return el;
-    })
-
-    await tempsSinEspacio.forEach(el => {
-        if (el != '') {
-            Temperament.findOrCreate({
-                where: {
-                    name: el
-                },
-            });
-        }
-    });
-    const allTemps = await Temperament.findAll();
-    res.status(200).send(allTemps);
+router.get('/', async (req, res, next) => {
+  try {
+    if (!seeded) {
+      if (!seeding) {
+        seeding = (async () => {
+          const dogs = await getApiDogs();
+          const names = [...new Set(dogs.flatMap(d => d.temperaments))].sort();
+          for (const name of names) await Temperament.findOrCreate({ where: { name } });
+          seeded = true;
+        })().finally(() => { seeding = null; });
+      }
+      await seeding;
+    }
+    const allTemps = await Temperament.findAll({ order: [['name', 'ASC']] });
+    res.status(200).json(allTemps);
+  } catch (error) {
+    next(error);
+  }
 });
 
 module.exports = router;

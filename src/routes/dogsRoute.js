@@ -8,8 +8,8 @@ const { Dog, Temperament } = require('../db');
 
 router.get('/', async(req,res,next)=>{
     const { name } = req.query
-    const allDogs = await getAllDogs(); 
-    try {    
+    try {
+        const allDogs = await getAllDogs();
         if (name) {
            let dogsByName = await allDogs.filter(d => d.name.toLowerCase().includes(name.toLowerCase()))
            dogsByName.length?
@@ -25,8 +25,8 @@ router.get('/', async(req,res,next)=>{
 
 router.get('/:id', async (req, res, next) => {
     const { id } = req.params;
-    const allBreeds = await getAllDogs();
     try {
+        const allBreeds = await getAllDogs();
         if (id) {
         let breed = await allBreeds.filter(b => b.id == id);
         breed.length? 
@@ -67,7 +67,7 @@ router.post('/', async (req,res,next) => {
             name: temperaments,
         }
     });
-    breedCreated.addTemperament(temperamentsDB);
+    await breedCreated.addTemperament(temperamentsDB);
     res.send('🐕 Breed created successfully 🐶')
     } catch (error) {
         next(error)

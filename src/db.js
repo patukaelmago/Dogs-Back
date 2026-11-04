@@ -2,41 +2,24 @@ require('dotenv').config();
 const { Sequelize } = require('sequelize');
 const fs = require('fs');
 const path = require('path');
-const {
-  DB_USER, DB_PASSWORD, DB_HOST, DB_DEPLOY, 
-} = process.env;
-
-/* const sequelize = new Sequelize(`postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/dogs`, {
-  logging: false, 
-  native: false, 
-}); */
-/* const sequelize = new Sequelize(`postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/dogs`, { */
-const sequelize = new Sequelize(
-DB_DEPLOY, {
-  logging: false,
-  native: false, 
-
-  dialectOptions: {
-    ssl: {
-      require: true,
-      rejectUnauthorized: false,
-    },
-
-  }
-}); 
-
-/* const sequelize = new Sequelize(DB_DEPLOY, DB_USER, DB_PASSWORD, {
-  host: DB_HOST,
+const { DATABASE_URL, DB_DEPLOY, DB_USER, DB_PASSWORD, DB_HOST, DB_NAME, DB_SSL } = process.env;
+const connectionUrl = DATABASE_URL || DB_DEPLOY;
+const options = {
   dialect: 'postgres',
   logging: false,
-  native: false,
+  pool: { max: 5, min: 0, acquire: 15000, idle: 10000 },
   dialectOptions: {
-    ssl: {
-      require: true,
-      rejectUnauthorized: false,
-    },
+    connectionTimeoutMillis: 10000,
+    ...(DB_SSL === 'false' || (!connectionUrl && DB_SSL !== 'true') ? {} : {
+      ssl: { require: true, rejectUnauthorized: false },
+    }),
   },
-}); */
+};
+const sequelize = connectionUrl
+  ? new Sequelize(connectionUrl, options)
+  : new Sequelize(DB_NAME || 'dogs', DB_USER || 'postgres', DB_PASSWORD, {
+    ...options, host: DB_HOST || 'localhost', port: process.env.DB_PORT || 5432,
+  });
 
 const basename = path.basename(__filename);
 
